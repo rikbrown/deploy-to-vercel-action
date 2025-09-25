@@ -15,13 +15,15 @@ const {
 	PR_LABELS,
 	CREATE_COMMENT,
 	DELETE_EXISTING_COMMENT,
+	COMMENT_TITLE,
 	PR_PREVIEW_DOMAIN,
 	ALIAS_DOMAINS,
 	ATTACH_COMMIT_METADATA,
 	LOG_URL,
 	DEPLOY_PR_FROM_FORK,
 	IS_FORK,
-	ACTOR
+	ACTOR,
+	VERCEL_PROJECT_ID
 } = require('./config')
 
 // Following https://perishablepress.com/stop-using-unsafe-characters-in-urls/ only allow characters that won't break the URL.
@@ -149,8 +151,12 @@ const run = async () => {
 
 			if (CREATE_COMMENT) {
 				core.info('Creating new comment on PR')
+
+				// Build the comment body with project ID marker for deduplication
+				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
 				const body = `
-					This pull request has been deployed to Vercel.
+					<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->
+					${ titleSection }This pull request has been deployed to Vercel.
 
 					<table>
 						<tr>

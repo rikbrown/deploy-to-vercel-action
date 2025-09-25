@@ -9,7 +9,8 @@ const {
 	REF,
 	LOG_URL,
 	PR_LABELS,
-	GITHUB_DEPLOYMENT_ENV
+	GITHUB_DEPLOYMENT_ENV,
+	VERCEL_PROJECT_ID
 } = require('./config')
 
 const init = () => {
@@ -58,7 +59,13 @@ const init = () => {
 
 		if (data.length < 1) return
 
-		const comment = data.find((comment) => comment.body.includes('This pull request has been deployed to Vercel.'))
+		// Look for comments that match both the Vercel deployment message and the specific project ID
+		const projectIdMarker = `<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->`
+		const comment = data.find((comment) =>
+			comment.body.includes('This pull request has been deployed to Vercel.') &&
+			comment.body.includes(projectIdMarker)
+		)
+
 		if (comment) {
 			await client.issues.deleteComment({
 				owner: USER,
