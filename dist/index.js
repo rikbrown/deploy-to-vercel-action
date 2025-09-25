@@ -41895,6 +41895,7 @@ module.exports = context
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const github = __nccwpck_require__(3228)
+const core = __nccwpck_require__(7484)
 
 const {
 	GITHUB_TOKEN,
@@ -41946,35 +41947,39 @@ const init = () => {
 		return deploymentStatus.data
 	}
 
-	const deleteExistingComment = async () => {
-		const { data } = await client.issues.listComments({
-			owner: USER,
-			repo: REPOSITORY,
-			issue_number: PR_NUMBER
-		})
-
-		if (data.length < 1) return
-
-		const projectIdMarker = `<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->`
-		const comment = data.find((comment) =>
-			comment.body.includes(projectIdMarker)
-		)
-
-		if (comment) {
-			await client.issues.deleteComment({
-				owner: USER,
-				repo: REPOSITORY,
-				comment_id: comment.id
-			})
-
-			return comment.id
-		}
-	}
-
-	const createComment = async (body) => {
-		// Remove indentation
+	const upsertComment = async (body, deleteExisting = true) => {
+		// Remove indentation from the body
 		const dedented = body.replace(/^[^\S\n]+/gm, '')
 
+		// Extract project ID marker from the new comment body
+		const projectIdMarker = `<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->`
+
+		if (deleteExisting) {
+			// Find and delete existing comment for this project
+			const { data } = await client.issues.listComments({
+				owner: USER,
+				repo: REPOSITORY,
+				issue_number: PR_NUMBER
+			})
+
+			if (data.length > 0) {
+				const existingComment = data.find((comment) =>
+					comment.body.includes(projectIdMarker)
+				)
+
+				if (existingComment) {
+					await client.issues.deleteComment({
+						owner: USER,
+						repo: REPOSITORY,
+						comment_id: existingComment.id
+					})
+
+					core.info(`Deleted existing comment #${ existingComment.id }`)
+				}
+			}
+		}
+
+		// Create the new comment
 		const comment = await client.issues.createComment({
 			owner: USER,
 			repo: REPOSITORY,
@@ -41984,6 +41989,7 @@ const init = () => {
 
 		return comment.data
 	}
+
 
 	const addLabel = async () => {
 		const label = await client.issues.addLabels({
@@ -42014,8 +42020,7 @@ const init = () => {
 		client,
 		createDeployment,
 		updateDeployment,
-		deleteExistingComment,
-		createComment,
+		upsertComment,
 		addLabel,
 		getCommit
 	}
@@ -44194,12 +44199,14 @@ const run = async () => {
 	if (IS_FORK === true && DEPLOY_PR_FROM_FORK === false) {
 		core.warning(`PR is from fork and DEPLOY_PR_FROM_FORK is set to false`)
 		const body = `
+			<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->
 			Refusing to deploy this Pull Request to Vercel because it originates from @${ ACTOR }'s fork.
 
 			**@${ USER }** To allow this behaviour set \`DEPLOY_PR_FROM_FORK\` to true ([more info](https://github.com/BetaHuhn/deploy-to-vercel-action#deploying-a-pr-made-from-a-fork-or-dependabot)).
 		`
 
-		const comment = await github.createComment(body)
+		// Use upsertComment for consistency, with DELETE_EXISTING_COMMENT flag
+		const comment = await github.upsertComment(body, DELETE_EXISTING_COMMENT)
 		core.info(`Comment created: ${ comment.html_url }`)
 
 		core.setOutput('DEPLOYMENT_CREATED', false)
@@ -44300,15 +44307,8 @@ const run = async () => {
 		}
 
 		if (IS_PR) {
-			if (DELETE_EXISTING_COMMENT) {
-				core.info('Checking for existing comment on PR')
-				const deletedCommentId = await github.deleteExistingComment()
-
-				if (deletedCommentId) core.info(`Deleted existing comment #${ deletedCommentId }`)
-			}
-
 			if (CREATE_COMMENT) {
-				core.info('Creating new comment on PR')
+				core.info('Creating/updating comment on PR')
 
 				// Build the comment body with project ID marker for deduplication
 				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
@@ -44334,7 +44334,8 @@ const run = async () => {
 					[View Workflow Logs](${ LOG_URL })
 				`
 
-				const comment = await github.createComment(body)
+				// Use upsertComment which handles deletion if DELETE_EXISTING_COMMENT is true
+				const comment = await github.upsertComment(body, DELETE_EXISTING_COMMENT)
 				core.info(`Comment created: ${ comment.html_url }`)
 			}
 

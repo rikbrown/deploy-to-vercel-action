@@ -41,7 +41,8 @@ const run = async () => {
 			**@${ USER }** To allow this behaviour set \`DEPLOY_PR_FROM_FORK\` to true ([more info](https://github.com/BetaHuhn/deploy-to-vercel-action#deploying-a-pr-made-from-a-fork-or-dependabot)).
 		`
 
-		const comment = await github.createComment(body)
+		// Use upsertComment for consistency, with DELETE_EXISTING_COMMENT flag
+		const comment = await github.upsertComment(body)
 		core.info(`Comment created: ${ comment.html_url }`)
 
 		core.setOutput('DEPLOYMENT_CREATED', false)
@@ -59,6 +60,36 @@ const run = async () => {
 
 		await github.updateDeployment('pending')
 		core.info(`Deployment #${ ghDeployment.id } status changed to "pending"`)
+	}
+
+	if (IS_PR) {
+		if (CREATE_COMMENT) {
+			core.info('Creating/updating initial comment on PR')
+			const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
+			const body = `
+				${ titleSection }This pull request is being deployed to Vercel.
+
+				<table>
+					<tr>
+						<td><strong>Latest commit:</strong></td>
+						<td><code>${ SHA.substring(0, 7) }</code></td>
+					</tr>
+					<tr>
+						<td><strong>🟨 Preview:</strong></td>
+						<td>Pending</td>
+					</tr>
+					<tr>
+						<td><strong>🔍 Inspect:</strong></td>
+						<td>Pending</td>
+					</tr>
+				</table>
+
+				[View Workflow Logs](${ LOG_URL })
+			`
+
+			const comment = await github.upsertComment(body)
+			core.info(`Comment created: ${ comment.html_url }`)
+		}
 	}
 
 	try {
@@ -142,20 +173,12 @@ const run = async () => {
 		}
 
 		if (IS_PR) {
-			if (DELETE_EXISTING_COMMENT) {
-				core.info('Checking for existing comment on PR')
-				const deletedCommentId = await github.deleteExistingComment()
-
-				if (deletedCommentId) core.info(`Deleted existing comment #${ deletedCommentId }`)
-			}
-
 			if (CREATE_COMMENT) {
-				core.info('Creating new comment on PR')
+				core.info('Creating/updating comment on PR')
 
 				// Build the comment body with project ID marker for deduplication
 				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
 				const body = `
-					<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->
 					${ titleSection }This pull request has been deployed to Vercel.
 
 					<table>
@@ -176,7 +199,7 @@ const run = async () => {
 					[View Workflow Logs](${ LOG_URL })
 				`
 
-				const comment = await github.createComment(body)
+				const comment = await github.upsertComment(body)
 				core.info(`Comment created: ${ comment.html_url }`)
 			}
 

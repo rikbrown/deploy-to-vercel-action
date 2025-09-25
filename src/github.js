@@ -1,4 +1,5 @@
 const github = require('@actions/github')
+const core = require('@actions/core')
 
 const {
 	GITHUB_TOKEN,
@@ -10,7 +11,8 @@ const {
 	LOG_URL,
 	PR_LABELS,
 	GITHUB_DEPLOYMENT_ENV,
-	VERCEL_PROJECT_ID
+	VERCEL_PROJECT_ID,
+	DELETE_EXISTING_COMMENT
 } = require('./config')
 
 const init = () => {
@@ -50,44 +52,52 @@ const init = () => {
 		return deploymentStatus.data
 	}
 
-	const deleteExistingComment = async () => {
-		const { data } = await client.issues.listComments({
-			owner: USER,
-			repo: REPOSITORY,
-			issue_number: PR_NUMBER
-		})
-
-		if (data.length < 1) return
-
+	const upsertComment = async (body) => {
+		// Add project ID marker for deduplication
 		const projectIdMarker = `<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->`
-		const comment = data.find((comment) =>
-			comment.body.includes(projectIdMarker)
-		)
 
-		if (comment) {
-			await client.issues.deleteComment({
+		// Remove indentation from the body
+		const cleanBody = body.replace(/^[^\S\n]+/gm, '')
+
+		// Prepend the marker to the body (it will be invisible in the rendered comment)
+		const bodyWithMarker = `${ projectIdMarker }\n${ cleanBody }`
+
+		if (DELETE_EXISTING_COMMENT) {
+			// Find and delete existing comment for this project
+			const { data } = await client.issues.listComments({
 				owner: USER,
 				repo: REPOSITORY,
-				comment_id: comment.id
+				issue_number: PR_NUMBER
 			})
 
-			return comment.id
+			if (data.length > 0) {
+				const existingComment = data.find((comment) =>
+					comment.body.includes(projectIdMarker)
+				)
+
+				if (existingComment) {
+					await client.issues.deleteComment({
+						owner: USER,
+						repo: REPOSITORY,
+						comment_id: existingComment.id
+					})
+
+					core.info(`Deleted existing comment #${ existingComment.id }`)
+				}
+			}
 		}
-	}
 
-	const createComment = async (body) => {
-		// Remove indentation
-		const dedented = body.replace(/^[^\S\n]+/gm, '')
-
+		// Create the new comment
 		const comment = await client.issues.createComment({
 			owner: USER,
 			repo: REPOSITORY,
 			issue_number: PR_NUMBER,
-			body: dedented
+			body: bodyWithMarker
 		})
 
 		return comment.data
 	}
+
 
 	const addLabel = async () => {
 		const label = await client.issues.addLabels({
@@ -118,8 +128,7 @@ const init = () => {
 		client,
 		createDeployment,
 		updateDeployment,
-		deleteExistingComment,
-		createComment,
+		upsertComment,
 		addLabel,
 		getCommit
 	}
