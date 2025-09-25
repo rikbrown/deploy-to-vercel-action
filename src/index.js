@@ -186,6 +186,8 @@ const run = async () => {
 
 				core.info(`Label(s) "${ labels.map((label) => label.name).join(', ') }" added`)
 			}
+		} else {
+			core.info('No PR found, skipping comment and label creation')
 		}
 
 		core.setOutput('PREVIEW_URL', previewUrl)
