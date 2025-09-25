@@ -42,6 +42,9 @@ const context = {
 		type: 'boolean',
 		default: true
 	}),
+	COMMENT_TITLE: parser.getInput({
+		key: 'COMMENT_TITLE'
+	}),
 	ATTACH_COMMIT_METADATA: parser.getInput({
 		key: 'ATTACH_COMMIT_METADATA',
 		type: 'boolean',
@@ -101,7 +104,7 @@ const context = {
 	}),
 	ARCHIVE: parser.getInput({
 		key: 'ARCHIVE',
-		type: 'string',
+		type: 'string'
 	})
 }
 

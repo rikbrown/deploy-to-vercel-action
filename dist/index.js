@@ -15928,6 +15928,9 @@ const context = {
 		type: 'boolean',
 		default: true
 	}),
+	COMMENT_TITLE: parser.getInput({
+		key: 'COMMENT_TITLE'
+	}),
 	ATTACH_COMMIT_METADATA: parser.getInput({
 		key: 'ATTACH_COMMIT_METADATA',
 		type: 'boolean',
@@ -15987,7 +15990,7 @@ const context = {
 	}),
 	ARCHIVE: parser.getInput({
 		key: 'ARCHIVE',
-		type: 'string',
+		type: 'string'
 	})
 }
 
@@ -16062,7 +16065,8 @@ const {
 	REF,
 	LOG_URL,
 	PR_LABELS,
-	GITHUB_DEPLOYMENT_ENV
+	GITHUB_DEPLOYMENT_ENV,
+	VERCEL_PROJECT_ID
 } = __nccwpck_require__(4570)
 
 const init = () => {
@@ -16111,7 +16115,13 @@ const init = () => {
 
 		if (data.length < 1) return
 
-		const comment = data.find((comment) => comment.body.includes('This pull request has been deployed to Vercel.'))
+		// Look for comments that match both the Vercel deployment message and the specific project ID
+		const projectIdMarker = `<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->`
+		const comment = data.find((comment) =>
+			comment.body.includes('This pull request has been deployed to Vercel.') &&
+			comment.body.includes(projectIdMarker)
+		)
+
 		if (comment) {
 			await client.issues.deleteComment({
 				owner: USER,
@@ -16574,13 +16584,15 @@ const {
 	PR_LABELS,
 	CREATE_COMMENT,
 	DELETE_EXISTING_COMMENT,
+	COMMENT_TITLE,
 	PR_PREVIEW_DOMAIN,
 	ALIAS_DOMAINS,
 	ATTACH_COMMIT_METADATA,
 	LOG_URL,
 	DEPLOY_PR_FROM_FORK,
 	IS_FORK,
-	ACTOR
+	ACTOR,
+	VERCEL_PROJECT_ID
 } = __nccwpck_require__(4570)
 
 // Following https://perishablepress.com/stop-using-unsafe-characters-in-urls/ only allow characters that won't break the URL.
@@ -16708,8 +16720,12 @@ const run = async () => {
 
 			if (CREATE_COMMENT) {
 				core.info('Creating new comment on PR')
+
+				// Build the comment body with project ID marker for deduplication
+				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
 				const body = `
-					This pull request has been deployed to Vercel.
+					<!-- vercel-deployment-project-id: ${ VERCEL_PROJECT_ID } -->
+					${ titleSection }This pull request has been deployed to Vercel.
 
 					<table>
 						<tr>

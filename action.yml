@@ -43,6 +43,10 @@ inputs:
     description: |
       Delete existing PR comment when redeploying PR (default: true).
     required: false
+  COMMENT_TITLE:
+    description: |
+      Optional title to add at the top of PR comments as a header.
+    required: false
   ATTACH_COMMIT_METADATA:
     description: |
       Attach metadata about the commit to the Vercel deployment (default: true).
