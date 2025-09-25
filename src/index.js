@@ -14,7 +14,6 @@ const {
 	IS_PR,
 	PR_LABELS,
 	CREATE_COMMENT,
-	DELETE_EXISTING_COMMENT,
 	COMMENT_TITLE,
 	PR_PREVIEW_DOMAIN,
 	ALIAS_DOMAINS,
@@ -22,14 +21,46 @@ const {
 	LOG_URL,
 	DEPLOY_PR_FROM_FORK,
 	IS_FORK,
-	ACTOR,
-	VERCEL_PROJECT_ID
+	ACTOR
 } = require('./config')
 
 // Following https://perishablepress.com/stop-using-unsafe-characters-in-urls/ only allow characters that won't break the URL.
 const urlSafeParameter = (input) => input.replace(/[^a-z0-9_~]/gi, '-')
 
 const run = async () => {
+	async function updateComment({ previewUrl, inspectUrl }) {
+		if (IS_PR) {
+			if (CREATE_COMMENT) {
+				core.info('Creating/updating comment on PR')
+				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
+				const body = `
+					${ titleSection }This pull request is being deployed to Vercel.
+
+					<table>
+						<tr>
+							<td><strong>Latest commit:</strong></td>
+							<td><code>${ SHA.substring(0, 7) }</code></td>
+						</tr>
+						<tr>
+							<td><strong>${ previewUrl ? '✅' : '🟨' } Preview:</strong></td>
+							<td>${ previewUrl || 'Pending' }</td>
+						</tr>
+						<tr>
+							<td><strong>🔍 Inspect:</strong></td>
+							<td>${ inspectUrl || 'Pending' }</td>
+						</tr>
+					</table>
+
+					[View Workflow Logs](${ LOG_URL })
+				`
+
+				const comment = await github.upsertComment(body)
+				core.info(`Comment created: ${ comment.html_url }`)
+			}
+		}
+	}
+
+
 	const github = Github.init()
 
 	// Refuse to deploy an untrusted fork
@@ -62,35 +93,7 @@ const run = async () => {
 		core.info(`Deployment #${ ghDeployment.id } status changed to "pending"`)
 	}
 
-	if (IS_PR) {
-		if (CREATE_COMMENT) {
-			core.info('Creating/updating initial comment on PR')
-			const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
-			const body = `
-				${ titleSection }This pull request is being deployed to Vercel.
-
-				<table>
-					<tr>
-						<td><strong>Latest commit:</strong></td>
-						<td><code>${ SHA.substring(0, 7) }</code></td>
-					</tr>
-					<tr>
-						<td><strong>🟨 Preview:</strong></td>
-						<td>Pending</td>
-					</tr>
-					<tr>
-						<td><strong>🔍 Inspect:</strong></td>
-						<td>Pending</td>
-					</tr>
-				</table>
-
-				[View Workflow Logs](${ LOG_URL })
-			`
-
-			const comment = await github.upsertComment(body)
-			core.info(`Comment created: ${ comment.html_url }`)
-		}
-	}
+	updateComment({})
 
 	try {
 		core.info(`Creating deployment with Vercel CLI`)
@@ -172,45 +175,14 @@ const run = async () => {
 			await github.updateDeployment('success', previewUrl)
 		}
 
-		if (IS_PR) {
-			if (CREATE_COMMENT) {
-				core.info('Creating/updating comment on PR')
 
-				// Build the comment body with project ID marker for deduplication
-				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
-				const body = `
-					${ titleSection }This pull request has been deployed to Vercel.
+		await updateComment({ previewUrl, inspectUrl: deployment.inspectorUrl })
 
-					<table>
-						<tr>
-							<td><strong>Latest commit:</strong></td>
-							<td><code>${ SHA.substring(0, 7) }</code></td>
-						</tr>
-						<tr>
-							<td><strong>✅ Preview:</strong></td>
-							<td><a href='${ previewUrl }'>${ previewUrl }</a></td>
-						</tr>
-						<tr>
-							<td><strong>🔍 Inspect:</strong></td>
-							<td><a href='${ deployment.inspectorUrl }'>${ deployment.inspectorUrl }</a></td>
-						</tr>
-					</table>
+		if (IS_PR && PR_LABELS) {
+			core.info('Adding label(s) to PR')
+			const labels = await github.addLabel()
 
-					[View Workflow Logs](${ LOG_URL })
-				`
-
-				const comment = await github.upsertComment(body)
-				core.info(`Comment created: ${ comment.html_url }`)
-			}
-
-			if (PR_LABELS) {
-				core.info('Adding label(s) to PR')
-				const labels = await github.addLabel()
-
-				core.info(`Label(s) "${ labels.map((label) => label.name).join(', ') }" added`)
-			}
-		} else {
-			core.info('No PR found, skipping comment and label creation')
+			core.info(`Label(s) "${ labels.map((label) => label.name).join(', ') }" added`)
 		}
 
 		core.setOutput('PREVIEW_URL', previewUrl)
