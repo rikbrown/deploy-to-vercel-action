@@ -44,11 +44,11 @@ const run = async () => {
 						</tr>
 						<tr>
 							<td><strong>${ error ? '🔴' : previewUrl ? '✅' : '🟨' } Preview:</strong></td>
-							<td>${ error ? '*Error*' : (previewUrl ? `[${ previewUrl }](${ previewUrl })` : '*Pending*') }</td>
+							<td>${ error ? 'Error' : (previewUrl || 'Pending') }</td>
 						</tr>
 						<tr>
 							<td><strong>🔍 Inspect:</strong></td>
-							<td>${ error ? '*Error*' : (inspectUrl ? `[${ inspectUrl }](${ inspectUrl })` : '*Pending*') }</td>
+							<td>${ error ? 'Error' : (inspectUrl || 'Pending') }</td>
 						</tr>
 					</table>
 
