@@ -101,7 +101,7 @@ const context = {
 	}),
 	ARCHIVE: parser.getInput({
 		key: 'ARCHIVE',
-		type: 'string',
+		type: 'string'
 	})
 }
 
