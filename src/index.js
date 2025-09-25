@@ -44,11 +44,11 @@ const run = async () => {
 						</tr>
 						<tr>
 							<td><strong>${ error ? '🔴' : previewUrl ? '✅' : '🟨' } Preview:</strong></td>
-							<td>${ error ? '*Error*' : (previewUrl || '*Pending*') }</td>
+							<td>${ error ? '*Error*' : (previewUrl ? `<a target='_blank' href='${ previewUrl }'>${ previewUrl }</a>` : '*Pending*') }</td>
 						</tr>
 						<tr>
 							<td><strong>🔍 Inspect:</strong></td>
-							<td>${ error ? '*Error*' : (inspectUrl || '*Pending*') }</td>
+							<td>${ error ? '*Error*' : (inspectUrl ? `<a target='_blank' href='${ inspectUrl }'>${ inspectUrl }</a>` : '*Pending*') }</td>
 						</tr>
 					</table>
 
