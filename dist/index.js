@@ -44165,6 +44165,7 @@ module.exports = /*#__PURE__*/JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
+/* eslint-disable no-nested-ternary */
 const core = __nccwpck_require__(7484)
 const Github = __nccwpck_require__(6474)
 const Vercel = __nccwpck_require__(3498)
@@ -44195,10 +44196,10 @@ const {
 const urlSafeParameter = (input) => input.replace(/[^a-z0-9_~]/gi, '-')
 
 const run = async () => {
-	async function updateComment({ previewUrl, inspectUrl }) {
+	async function updateComment({ previewUrl, inspectUrl, error }) {
 		if (IS_PR) {
 			if (CREATE_COMMENT) {
-				core.info('Creating/updating initial comment on PR')
+				core.info('Creating/updating comment on PR')
 				const titleSection = COMMENT_TITLE ? `## ${ COMMENT_TITLE }\n\n` : ''
 				const body = `
 					${ titleSection }This pull request is being deployed to Vercel.
@@ -44209,12 +44210,12 @@ const run = async () => {
 							<td><code>${ SHA.substring(0, 7) }</code></td>
 						</tr>
 						<tr>
-							<td><strong>${ previewUrl ? '✅' : '🟨' } Preview:</strong></td>
-							<td>${ previewUrl || 'Pending' }</td>
+							<td><strong>${ error ? '🔴' : previewUrl ? '✅' : '🟨' } Preview:</strong></td>
+							<td>${ error ? '*Error*' : (previewUrl ? `[${ previewUrl }](${ previewUrl })` : '*Pending*') }</td>
 						</tr>
 						<tr>
 							<td><strong>🔍 Inspect:</strong></td>
-							<td>${ inspectUrl || 'Pending' }</td>
+							<td>${ error ? '*Error*' : (inspectUrl ? `[${ inspectUrl }](${ inspectUrl })` : '*Pending*') }</td>
 						</tr>
 					</table>
 
@@ -44260,7 +44261,7 @@ const run = async () => {
 		core.info(`Deployment #${ ghDeployment.id } status changed to "pending"`)
 	}
 
-	updateComment({})
+	await updateComment({})
 
 	try {
 		core.info(`Creating deployment with Vercel CLI`)
@@ -44334,7 +44335,14 @@ const run = async () => {
 		deploymentUrls.push(addSchema(deploymentUrl))
 		const previewUrl = deploymentUrls[0]
 
-		const deployment = await vercel.getDeployment()
+		let deployment
+		try {
+			deployment = await vercel.getDeployment()
+		} catch (err) {
+			await updateComment({ error: true })
+			throw err
+		}
+
 		core.info(`Deployment "${ deployment.id }" available at: ${ deploymentUrls.join(', ') }`)
 
 		if (GITHUB_DEPLOYMENT) {
