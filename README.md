@@ -1,3 +1,7 @@
+**IMPORTANT**: This is a forked version of [BetaHuhn/deploy-to-vercel-action](https://github.com/BetaHuhn/deploy-to-vercel-action), fixing various issues and adding features. I haven't properly documented the features or release system - but will soon. Reach out to me via Discussions with questions. I intend to try to reach the original author and merge these back in.
+
+---
+
 <div align="center">
 
 # Deploy to Vercel Action
