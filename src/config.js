@@ -105,6 +105,11 @@ const context = {
 	ARCHIVE: parser.getInput({
 		key: 'ARCHIVE',
 		type: 'string'
+	}),
+	PROMOTE: parser.getInput({
+		key: 'PROMOTE',
+		type: 'boolean',
+		default: false
 	})
 }
 

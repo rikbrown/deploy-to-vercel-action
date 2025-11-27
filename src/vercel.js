@@ -111,11 +111,24 @@ const init = () => {
 		return res
 	}
 
+	const promote = async () => {
+		const commandArguments = [ `--token=${ VERCEL_TOKEN }`, 'promote', deploymentUrl ]
+
+		if (VERCEL_SCOPE) {
+			commandArguments.push(`--scope=${ VERCEL_SCOPE }`)
+		}
+
+		const output = await exec('npx', [ '-y', 'vercel@48', ...commandArguments ], WORKING_DIRECTORY)
+
+		return output
+	}
+
 	return {
 		deploy,
 		assignAlias,
 		deploymentUrl,
-		getDeployment
+		getDeployment,
+		promote
 	}
 }
 

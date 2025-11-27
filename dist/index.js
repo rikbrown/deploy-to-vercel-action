@@ -41831,6 +41831,11 @@ const context = {
 	ARCHIVE: parser.getInput({
 		key: 'ARCHIVE',
 		type: 'string'
+	}),
+	PROMOTE: parser.getInput({
+		key: 'PROMOTE',
+		type: 'boolean',
+		default: false
 	})
 }
 
@@ -42207,11 +42212,24 @@ const init = () => {
 		return res
 	}
 
+	const promote = async () => {
+		const commandArguments = [ `--token=${ VERCEL_TOKEN }`, 'promote', deploymentUrl ]
+
+		if (VERCEL_SCOPE) {
+			commandArguments.push(`--scope=${ VERCEL_SCOPE }`)
+		}
+
+		const output = await exec('npx', [ '-y', 'vercel@48', ...commandArguments ], WORKING_DIRECTORY)
+
+		return output
+	}
+
 	return {
 		deploy,
 		assignAlias,
 		deploymentUrl,
-		getDeployment
+		getDeployment,
+		promote
 	}
 }
 
@@ -44189,7 +44207,8 @@ const {
 	LOG_URL,
 	DEPLOY_PR_FROM_FORK,
 	IS_FORK,
-	ACTOR
+	ACTOR,
+	PROMOTE
 } = __nccwpck_require__(1283)
 
 // Following https://perishablepress.com/stop-using-unsafe-characters-in-urls/ only allow characters that won't break the URL.
@@ -44358,6 +44377,12 @@ const run = async () => {
 			const labels = await github.addLabel()
 
 			core.info(`Label(s) "${ labels.map((label) => label.name).join(', ') }" added`)
+		}
+
+		if (PROMOTE) {
+			core.info('Promoting deployment to production')
+			await vercel.promote()
+			core.info('Deployment promoted to production')
 		}
 
 		core.setOutput('PREVIEW_URL', previewUrl)

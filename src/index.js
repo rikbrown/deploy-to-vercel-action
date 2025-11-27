@@ -22,7 +22,8 @@ const {
 	LOG_URL,
 	DEPLOY_PR_FROM_FORK,
 	IS_FORK,
-	ACTOR
+	ACTOR,
+	PROMOTE
 } = require('./config')
 
 // Following https://perishablepress.com/stop-using-unsafe-characters-in-urls/ only allow characters that won't break the URL.
@@ -191,6 +192,12 @@ const run = async () => {
 			const labels = await github.addLabel()
 
 			core.info(`Label(s) "${ labels.map((label) => label.name).join(', ') }" added`)
+		}
+
+		if (PROMOTE) {
+			core.info('Promoting deployment to production')
+			await vercel.promote()
+			core.info('Deployment promoted to production')
 		}
 
 		core.setOutput('PREVIEW_URL', previewUrl)

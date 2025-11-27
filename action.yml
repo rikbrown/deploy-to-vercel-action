@@ -91,6 +91,10 @@ inputs:
     description: |
       Used to skip the build cache.
     required: false
+  PROMOTE:
+    description: |
+      Promote the deployment to production after it completes (default: false).
+    required: false
 
 outputs:
   PREVIEW_URL:
